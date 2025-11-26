@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+.blog-content h2 {
+  @apply text-2xl font-bold mt-6 mb-4 text-gray-800;
+}
+
+.blog-content h3 {
+  @apply text-xl font-semibold mt-4 mb-3 text-gray-700;
+}
+
+.blog-content p {
+  @apply mb-4 text-gray-600 leading-relaxed;
+}
+
+.blog-content ul {
+  @apply mb-4 list-disc list-inside;
+}
+
+.blog-content li {
+  @apply mb-2 text-gray-600;
+}
