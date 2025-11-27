@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../axiosConfig';
 
-// Custom CSS to hide scrollbars
-const scrollbarHideStyles = `
+// Custom CSS to hide scrollbars and the specific h1 tag
+const customStyles = `
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -10,12 +10,15 @@ const scrollbarHideStyles = `
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  .hidden-heading {
+    display: none !important;
+  }
 `;
 
 // Component Architecture
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex justify-center items-center">
-    <style>{scrollbarHideStyles}</style>
+    <style>{customStyles}</style>
     <div className="text-center">
       <div className="animate-spin rounded-full h-14 w-14 border-4 border-blue-200 border-t-blue-500 mx-auto mb-4"></div>
       <p className="text-blue-700 font-medium text-lg">Loading Articles...</p>
@@ -138,6 +141,11 @@ const BlogModal = ({ blog, readingTime, onClose }) => {
     return content.replace(/<[^>]*>/g, '').split(/\s+/).length;
   };
 
+  // Function to hide specific h1 tags in the content
+  const processContent = (content) => {
+    return content.replace(/<h1[^>]*>.*?<\/h1>/gi, '<h1 class="hidden-heading">$&</h1>');
+  };
+
   return (
     <div 
       className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
@@ -209,7 +217,9 @@ const BlogModal = ({ blog, readingTime, onClose }) => {
                       prose-blockquote:border-blue-400 prose-blockquote:bg-blue-50/50 prose-blockquote:italic prose-blockquote:rounded-xl
                       prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
                       prose-img:rounded-xl prose-img:shadow-lg prose-img:mx-auto prose-img:max-w-full"
-            dangerouslySetInnerHTML={{ __html: blog.content }}
+            dangerouslySetInnerHTML={{ 
+              __html: processContent(blog.content) 
+            }}
           />
         </div>
 
@@ -299,7 +309,7 @@ const BlogPage = () => {
 
   return (
     <>
-      <style>{scrollbarHideStyles}</style>
+      <style>{customStyles}</style>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       
         <header className="bg-gradient-to-br from-blue-50/80 via-white to-cyan-50/80 backdrop-blur-sm">

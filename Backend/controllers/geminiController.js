@@ -39,45 +39,85 @@ const generateBlogWithGemini = async (keyword) => {
       throw new Error("Gemini API key missing in ENV file");
     }
 
-    const draftPrompt = `
-You are a professional SEO content writer and trending-topic expert.
+const draftPrompt = `
+You are an advanced SEO keyword intelligence system.
 
-Generate a HIGH-QUALITY, trending-style blog article based on the keyword: "${keyword}"
+User keyword: "${keyword}"
 
-====================
-STRICT REQUIREMENTS:
-====================
-- 1 main title using <h1>
-- 500–1000 words
-- Modern & trending tone
-- Use <h2> and <h3> headings properly
-- Short paragraphs (max 4 lines)
-- Strong intro + useful insights
-- Include examples + tips
-- Add a short 20–30 word EXCERPT
+==============================
+PART 1 — SMART TREND ANALYSIS
+==============================
 
-====================
-EXTRA REQUIREMENT:
-====================
-Also generate a CLEAN TEXT version of the article with NO HTML tags.
-This will be used in frontend previews.
+Generate **3 categories** of realistic search terms:
 
-====================
-RETURN FORMAT (VERY IMPORTANT):
-====================
+1) TRENDING_STYLE_KEYWORDS (4–6 items)
+   - Inspired by current year search behavior
+   - Seasonal patterns (e.g., summer, festivals, exams)
+   - Viral social patterns (e.g., reels, AI tools, challenges)
+   - Tech/industry updates (without news or politics)
+
+2) LONG_TAIL_KEYWORDS (4–6 items)
+   - 4–7 word phrases
+   - Strong user intent (how, best, for beginners, near me)
+
+3) QUESTION_BASED_QUERIES (4–6 items)
+   - Similar to Google People Also Ask
+   - Must start with:
+     - how / what / why / is / can / should
+
+RULES:
+- MUST stay related to the original user keyword
+- No random or unrelated trending topics
+- No medical, legal, political, or adult content
+- No news reporting
+
+==============================
+PART 2 — PRIMARY KEYWORD PICK
+==============================
+
+Select **1 PRIMARY_KEYWORD** that:
+- has highest search intent
+- is valuable & clear
+- still aligned with user keyword
+- not clickbait
+
+==============================
+PART 3 — BLOG GENERATION
+==============================
+
+Using the PRIMARY_KEYWORD, generate:
+
+- <h1> title
+- 600–900 words
+- SEO-friendly structure
+- <h2> and <h3> headings
+- short paragraphs (max 4 lines)
+- examples + steps + tips
+- 20–30 word excerpt
+- HTML blog + clean text version (no HTML)
+
+==============================
+STRICT RETURN FORMAT
+==============================
+
 Return ONLY valid JSON:
 
 {
+  "primaryKeyword": "",
+  "trendingKeywords": [],
+  "longTailKeywords": [],
+  "questionKeywords": [],
   "title": "",
   "excerpt": "",
-  "content": "",     // HTML blog
-  "cleanText": ""    // Plain text version
+  "content": "",
+  "cleanText": ""
 }
 
-NO markdown (#)
+NO markdown
 NO explanation
-NO extra text outside JSON
+NO extra text
 `;
+
 
     const draftText = await callGemini(apiKey, draftPrompt);
     let draftBlog = extractJson(draftText);

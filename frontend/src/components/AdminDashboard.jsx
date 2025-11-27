@@ -7,10 +7,26 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [editingBlog, setEditingBlog] = useState(null);
-  const [editForm, setEditForm] = useState({ title: '', content: '' });
+  const [editForm, setEditForm] = useState({ 
+    title: '', 
+    content: '', 
+    excerpt: '', 
+    keywords: [] 
+  });
   const [activeTab, setActiveTab] = useState('blogs');
-  const [stats, setStats] = useState({ published: 0, draft: 0, total: 0 });
+  const [stats, setStats] = useState({ 
+    published: 0, 
+    draft: 0, 
+    published_to_target: 0,
+    total: 0 
+  });
   const [imageUrls, setImageUrls] = useState([]);
+  
+  // ✅ Naye state variables
+  const [targetUrl, setTargetUrl] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [selectedBlogForPublish, setSelectedBlogForPublish] = useState(null);
 
   useEffect(() => {
     fetchBlogs();
@@ -21,10 +37,11 @@ const AdminDashboard = () => {
     if (blogs.length > 0) {
       const published = blogs.filter(blog => blog.status === 'published').length;
       const draft = blogs.filter(blog => blog.status === 'draft').length;
+      const published_to_target = blogs.filter(blog => blog.status === 'published_to_target').length;
       const total = blogs.length;
-      setStats({ published, draft, total });
+      setStats({ published, draft, published_to_target, total });
     } else {
-      setStats({ published: 0, draft: 0, total: 0 });
+      setStats({ published: 0, draft: 0, published_to_target: 0, total: 0 });
     }
   }, [blogs]);
 
@@ -56,9 +73,16 @@ const AdminDashboard = () => {
   };
 
   const generateBlogs = async () => {
+    // Validation
+    if (!targetUrl || !targetUrl.trim()) {
+      toast.error('Please provide Target API URL');
+      return;
+    }
+
     // Debug: Check what we're sending
     console.log('Current imageUrls:', imageUrls);
     console.log('Current keywords:', settings.keywords);
+    console.log('Target URL:', targetUrl);
 
     // Enhanced validation
     const missingUrls = [];
@@ -94,7 +118,8 @@ const AdminDashboard = () => {
         keywords: settings.keywords.map((keyword, index) => ({
           keyword: keyword.trim(),
           imageUrl: imageUrls[index].trim()
-        }))
+        })),
+        targetUrl: targetUrl.trim()
       };
 
       console.log('Final payload being sent:', payload);
@@ -104,6 +129,7 @@ const AdminDashboard = () => {
       fetchBlogs();
       // Clear image URLs after successful generation
       setImageUrls(Array(settings.keywords.length).fill(''));
+      setTargetUrl('');
     } catch (error) {
       console.error('Full generation error:', error);
       console.error('Error response data:', error.response?.data);
@@ -176,9 +202,33 @@ const AdminDashboard = () => {
     }
   };
 
+  const publishToTarget = async (blogId) => {
+    setPublishing(true);
+    try {
+      const response = await api.post(`/api/blogs/${blogId}/publish-to-target`);
+      toast.success('Blog successfully published to target website!');
+      fetchBlogs();
+      setShowPublishModal(false);
+    } catch (error) {
+      console.error('Publish error:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message ||
+                          'Failed to publish blog';
+      toast.error(`Publish failed: ${errorMessage}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const startEditing = (blog) => {
     setEditingBlog(blog);
-    setEditForm({ title: blog.title, content: blog.content });
+    setEditForm({ 
+      title: blog.title, 
+      content: blog.content,
+      excerpt: blog.excerpt || '',
+      keywords: blog.keywords || []
+    });
   };
 
   const saveEdit = async () => {
@@ -269,7 +319,7 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-white/50">
             <div className="flex items-center">
               <div className="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-50 text-green-500 mr-4">
@@ -308,6 +358,20 @@ const AdminDashboard = () => {
               <div>
                 <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
                 <div className="text-blue-600/70 text-sm font-medium">Total Blogs</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-white/50">
+            <div className="flex items-center">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 text-orange-500 mr-4">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-800">{stats.published_to_target}</div>
+                <div className="text-blue-600/70 text-sm font-medium">Published to Target</div>
               </div>
             </div>
           </div>
@@ -355,6 +419,23 @@ const AdminDashboard = () => {
                     {imageUrls.filter(url => url && url.trim()).length} / {settings.keywords?.length || 0} Image URLs provided
                   </div>
                 </div>
+              </div>
+              
+              {/* ✅ TARGET API URL INPUT */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  🎯 Target API URL (Aegservice Publishing Endpoint)
+                </label>
+                <input
+                  type="url"
+                  value={targetUrl}
+                  onChange={(e) => setTargetUrl(e.target.value)}
+                  placeholder="https://aegservice.com/api/publish-blog"
+                  className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                />
+                <p className="text-sm text-blue-600/70 mt-2">
+                  ℹ️ Enter the Aegservice API endpoint where blogs should be published
+                </p>
               </div>
               
               {/* Image URLs Input for each keyword */}
@@ -409,8 +490,8 @@ const AdminDashboard = () => {
               <div className="flex justify-center">
                 <button
                   onClick={generateBlogs}
-                  disabled={generating || imageUrls.some(url => !url || !url.trim())}
-                  className={`inline-flex items-center px-8 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 ${generating || imageUrls.some(url => !url || !url.trim())
+                  disabled={generating || imageUrls.some(url => !url || !url.trim()) || !targetUrl.trim()}
+                  className={`inline-flex items-center px-8 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 ${generating || imageUrls.some(url => !url || !url.trim()) || !targetUrl.trim()
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transform hover:-translate-y-1 hover:shadow-xl'
                     }`}
@@ -448,6 +529,9 @@ const AdminDashboard = () => {
                         Status
                       </th>
                       <th className="px-8 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Target URL
+                      </th>
+                      <th className="px-8 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
                         Created Date
                       </th>
                       <th className="px-8 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
@@ -465,13 +549,26 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-8 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${blog.status === 'published'
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                              blog.status === 'published'
                                 ? 'bg-green-100 text-green-700'
+                                : blog.status === 'published_to_target'
+                                ? 'bg-purple-100 text-purple-700'
                                 : 'bg-yellow-100 text-yellow-700'
-                              }`}
+                            }`}
                           >
-                            {blog.status === 'published' ? '✅ Published' : '📝 Draft'}
+                            {blog.status === 'published' 
+                              ? '✅ Published' 
+                              : blog.status === 'published_to_target'
+                              ? '🚀 Published to Target'
+                              : '📝 Draft'
+                            }
                           </span>
+                        </td>
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <div className="text-sm text-blue-600/80 font-medium max-w-xs truncate">
+                            {blog.targetUrl || 'Not set'}
+                          </div>
                         </td>
                         <td className="px-8 py-4 whitespace-nowrap text-sm text-blue-600/80 font-medium">
                           {new Date(blog.createdAt).toLocaleDateString('en-US', {
@@ -487,12 +584,23 @@ const AdminDashboard = () => {
                           >
                             ✏️ Edit
                           </button>
-                          {blog.status !== 'published' && (
+                          {blog.status === 'draft' && (
                             <button
-                              onClick={() => publishNow(blog._id)}
+                              onClick={() => {
+                                setSelectedBlogForPublish(blog);
+                                setShowPublishModal(true);
+                              }}
                               className="text-green-500 hover:text-green-700 transition-colors duration-200"
                             >
                               🚀 Publish
+                            </button>
+                          )}
+                          {blog.status === 'published' && (
+                            <button
+                              onClick={() => publishNow(blog._id)}
+                              className="text-orange-500 hover:text-orange-700 transition-colors duration-200"
+                            >
+                              🔄 Republish
                             </button>
                           )}
                           <button
@@ -630,6 +738,28 @@ const AdminDashboard = () => {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Excerpt</label>
+                  <textarea
+                    rows="3"
+                    className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                    value={editForm.excerpt}
+                    onChange={(e) => setEditForm({ ...editForm, excerpt: e.target.value })}
+                    placeholder="Brief description of the blog..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Keywords (comma separated)</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={editForm.keywords.join(', ')}
+                    onChange={(e) => setEditForm({ ...editForm, keywords: e.target.value.split(',').map(k => k.trim()) })}
+                    placeholder="keyword1, keyword2, keyword3"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3">Content</label>
                   <textarea
                     rows="15"
@@ -654,6 +784,53 @@ const AdminDashboard = () => {
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-semibold shadow-lg hover:from-blue-600 hover:to-cyan-600 transform hover:-translate-y-1 transition-all duration-300"
                 >
                   💾 Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Publish Confirmation Modal */}
+      {showPublishModal && selectedBlogForPublish && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-white/50">
+            <div className="px-6 py-4 border-b border-blue-100 bg-gradient-to-r from-green-50 to-emerald-50">
+              <h3 className="text-lg font-bold text-gray-800">Publish Blog</h3>
+              <p className="text-green-600/70 text-sm">Publish this blog to target website</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-gray-700 mb-2"><strong>Title:</strong> {selectedBlogForPublish.title}</p>
+                <p className="text-gray-700 mb-2"><strong>Target:</strong> {selectedBlogForPublish.targetUrl}</p>
+                <p className="text-sm text-gray-600">Are you sure you want to publish this blog to the target website?</p>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                  disabled={publishing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => publishToTarget(selectedBlogForPublish._id)}
+                  disabled={publishing}
+                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50"
+                >
+                  {publishing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Publishing...
+                    </>
+                  ) : (
+                    '🚀 Publish Now'
+                  )}
                 </button>
               </div>
             </div>

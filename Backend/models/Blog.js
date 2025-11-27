@@ -1,50 +1,39 @@
-// models/Blog.js
-
 const mongoose = require('mongoose');
 
-const blogSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-      trim: true
-    },
-
-    content: {
-      type: String,
-      required: true
-    },
-
-    // 👇 Image URL REQUIRED
-    image: {
-      type: String,
-      required: true,
-      trim: true
-    },
-
-    excerpt: {
-      type: String,
-      trim: true
-    },
-
-    keywords: {
-      type: [String],
-      default: []
-    },
-
-    status: {
-      type: String,
-      enum: ['draft', 'scheduled', 'published'],
-      default: 'draft'
-    },
-
-    publishedAt: {
-      type: Date,
-      default: null
-    }
+const blogSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
   },
-
-  { timestamps: true }
-);
+  content: {
+    type: String,
+    required: true
+  },
+  excerpt: {
+    type: String,
+    default: ''
+  },
+  keywords: [{
+    type: String
+  }],
+  imageUrl: {
+    type: String,
+    required: true
+  },
+  targetUrl: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'published', 'published_to_target', 'scheduled'],
+    default: 'draft'
+  },
+  publishedAt: {
+    type: Date
+  }
+}, { 
+  timestamps: true 
+});
 
 module.exports = mongoose.model('Blog', blogSchema);
