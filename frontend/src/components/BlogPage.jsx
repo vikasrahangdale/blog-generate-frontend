@@ -17,7 +17,7 @@ const customStyles = `
 
 // Component Architecture
 const LoadingSpinner = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex justify-center items-center">
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50   flex justify-center items-center">
     <style>{customStyles}</style>
     <div className="text-center">
       <div className="animate-spin rounded-full h-14 w-14 border-4 border-blue-200 border-t-blue-500 mx-auto mb-4"></div>
@@ -148,15 +148,15 @@ const BlogModal = ({ blog, readingTime, onClose }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+      className="fixed inset-0 bg-black/40 flex  items-center justify-center p-4 z-50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-white/50"
+        className="bg-white rounded-2xl max-w-6xl mt-20 w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-white/50"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header - NO IMAGE */}
-        <div className="px-8 py-6 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50">
+        <div className="px-8 py-6 border-b border-blue-100  bg-gradient-to-r from-blue-50 to-cyan-50">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
@@ -223,23 +223,7 @@ const BlogModal = ({ blog, readingTime, onClose }) => {
           />
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-8 py-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 text-blue-600/80 text-sm font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>AI Generated Content</span>
-            </div>
-            <button
-              onClick={onClose}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-600 transform hover:-translate-y-0.5 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              Close Article
-            </button>
-          </div>
-        </div>
+      
       </div>
     </div>
   );
@@ -310,12 +294,12 @@ const BlogPage = () => {
   return (
     <>
       <style>{customStyles}</style>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      <div className="min-h-screen  bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       
         <header className="bg-gradient-to-br from-blue-50/80 via-white to-cyan-50/80 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-6 py-16">
             <div className="text-center">
-              <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-600 to-cyan-300 bg-clip-text text-transparent mb-6">
+              <h1 className="text-5xl md:text-6xl pt-10 font-bold bg-gradient-to-r from-pink-600 to-cyan-300 bg-clip-text text-transparent mb-6">
                 Discover Quality Content
               </h1>
               <p className="text-gray-600/80 text-xl max-w-2xl mx-auto leading-relaxed mb-8 font-medium">
