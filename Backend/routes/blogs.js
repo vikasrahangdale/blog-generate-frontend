@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
-
 const Blog = require('../models/Blog');
 const Settings = require('../models/Settings');
 const { generateBlogWithGemini } = require('../controllers/geminiController');
@@ -41,85 +39,135 @@ router.get('/published', async (req, res) => {
   }
 });
 
+// ✅ COMPLETELY FIXED: No targetUrl validation
 router.post('/generate', async (req, res) => {
   try {
-    const settings = await getSettings();
+    console.log('📝 Blog generation started');
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
 
-    const { keywords: keywordImagePairs, targetUrl } = req.body;
+    // Get the data from request
+    const { keywords } = req.body;
+    
+    // Debug log
+    console.log('🔍 Keywords received:', keywords);
+    console.log('📊 Type of keywords:', typeof keywords);
+    console.log('🔢 Is array?', Array.isArray(keywords));
 
-    console.log('Received data:', req.body); // Debug log
-
-    // 1️⃣ Validate input data
-    if (!keywordImagePairs || !Array.isArray(keywordImagePairs) || keywordImagePairs.length === 0) {
-      return res.status(400).json({ error: "Keywords with image URLs are required!" });
+    // Simple validation
+    if (!keywords || !Array.isArray(keywords)) {
+      console.log('❌ Validation failed: keywords must be an array');
+      return res.status(400).json({ 
+        error: "Please provide keywords as an array" 
+      });
     }
 
-    if (!targetUrl || targetUrl.trim() === "") {
-      return res.status(400).json({ error: "Target API URL is required!" });
+    if (keywords.length === 0) {
+      console.log('❌ Validation failed: empty keywords array');
+      return res.status(400).json({ 
+        error: "Please provide at least one keyword" 
+      });
     }
 
-    // Validate target URL format
-    try {
-      new URL(targetUrl.trim());
-    } catch (error) {
-      return res.status(400).json({ error: "Invalid target API URL format!" });
-    }
-
-    // 2️⃣ Validate each keyword-image pair
-    for (const pair of keywordImagePairs) {
-      if (!pair.keyword || pair.keyword.trim() === "") {
-        return res.status(400).json({ error: "All keywords are required!" });
-      }
-      if (!pair.imageUrl || pair.imageUrl.trim() === "") {
-        return res.status(400).json({ error: `Image URL is required for keyword: ${pair.keyword}` });
-      }
-      
-      // Validate URL format
-      try {
-        new URL(pair.imageUrl.trim());
-      } catch (error) {
-        return res.status(400).json({ error: `Invalid image URL for keyword: ${pair.keyword}` });
-      }
-    }
-
+    // Process each keyword
     const generatedBlogs = [];
 
-    for (const pair of keywordImagePairs) {
+    for (let i = 0; i < keywords.length; i++) {
+      const item = keywords[i];
+      
+      console.log(`🔄 Processing item ${i+1}:`, item);
+
+      // Check if item has required fields
+      if (!item || typeof item !== 'object') {
+        console.log(`⚠️ Skipping invalid item at index ${i}`);
+        continue;
+      }
+
+      const keyword = item.keyword || '';
+      const imageUrl = item.imageUrl || '';
+
+      if (!keyword.trim()) {
+        console.log(`⚠️ Skipping item ${i} - missing keyword`);
+        continue;
+      }
+
+      if (!imageUrl.trim()) {
+        console.log(`⚠️ Skipping item ${i} - missing imageUrl`);
+        continue;
+      }
+
       try {
-        const { keyword, imageUrl } = pair;
-
-        // 3️⃣ Generate blog using Gemini
+        console.log(`🚀 Generating blog for: "${keyword}"`);
+        
+        // Generate blog content
         const blogData = await generateBlogWithGemini(keyword);
+        
+        console.log(`✅ Generated: "${blogData.title}"`);
 
-        // 4️⃣ Create blog with specific image and target URL
+        // Create blog in database
         const blog = await Blog.create({
           title: blogData.title,
           content: blogData.content,
-          excerpt: blogData.excerpt,
+          excerpt: blogData.excerpt || '',
           keywords: blogData.keywords || [keyword],
-          imageUrl: imageUrl.trim(),
-          targetUrl: targetUrl.trim(), // ✅ Store target URL
-          status: "draft" // ✅ Changed from "scheduled" to "draft" for manual publishing
+          image: imageUrl,
+          status: "draft",
+          createdAt: new Date()
         });
 
-        generatedBlogs.push(blog);
+        generatedBlogs.push({
+          _id: blog._id,
+          title: blog.title,
+          keyword: keyword
+        });
 
-        await new Promise(resolve => setTimeout(resolve, 2000)); // avoid rate limit
+        console.log(`💾 Saved blog ID: ${blog._id}`);
 
-      } catch (err) {
-        console.log(`Error generating blog for ${pair.keyword}:`, err);
-        // Continue with other keywords even if one fails
+        // Small delay between generations
+        if (i < keywords.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+      } catch (error) {
+        console.error(`❌ Error for "${keyword}":`, error.message);
+        // Continue with next item
       }
     }
 
+    console.log(`🎉 Successfully generated ${generatedBlogs.length} blogs`);
+
+    if (generatedBlogs.length === 0) {
+      return res.status(400).json({
+        error: "Failed to generate any blogs. Please check your input."
+      });
+    }
+
     res.json({
-      message: `${generatedBlogs.length} blogs generated successfully!`,
+      success: true,
+      message: `Successfully generated ${generatedBlogs.length} blog(s)!`,
+      count: generatedBlogs.length,
       blogs: generatedBlogs
     });
 
-  } catch (err) {
-    console.error('Generation error:', err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('🔥 Fatal error in generate route:', error);
+    res.status(500).json({ 
+      error: "Internal server error",
+      details: error.message 
+    });
+  }
+});
+
+// Get single blog
+router.get('/:id', async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+    if (!blog) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+    res.json(blog);
+  } catch (error) {
+    console.error('Error fetching blog:', error);
+    res.status(500).json({ error: 'Failed to fetch blog' });
   }
 });
 
@@ -169,7 +217,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Publish blog locally
+// Publish blog
 router.post('/:id/publish', async (req, res) => {
   try {
     const blog = await Blog.findByIdAndUpdate(
@@ -196,83 +244,17 @@ router.post('/:id/publish', async (req, res) => {
   }
 });
 
-// 🚀 FINAL: Publish blog to Website B (Target Website)
-router.post('/:id/publish-to-target', async (req, res) => {
-  try {
-    const blog = await Blog.findById(req.params.id);
-
-    if (!blog) {
-      return res.status(404).json({ error: "Blog not found" });
-    }
-
-    if (!blog.targetUrl || blog.targetUrl.trim() === "") {
-      return res.status(400).json({ error: "Target URL missing!" });
-    }
-
-    // 🟢 Website B ko bhejne wala FINAL payload
-    const payload = {
-      title: blog.title,
-      content: blog.content,
-      excerpt: blog.excerpt,
-      keywords: blog.keywords,
-      imageUrl: blog.imageUrl,
-      targetUrl: blog.targetUrl,
-      status: "published",
-      publishedAt: new Date().toISOString(),
-      source: "BlogGenerator"
-    };
-
-    console.log("🚀 Sending Blog To Website B:", blog.targetUrl);
-    console.log("📦 Payload:", payload);
-
-    // 🟢 Website B par data send karo
-    const response = await axios.post(`${blog.targetUrl}/receive-blog`, payload, {
-
-      headers: { "Content-Type": "application/json" }
-    });
-
-    console.log("🎉 Website B Response:", response.data);
-
-    // 🟢 Website A me status update
-    blog.status = "published_to_target";
-    blog.publishedAt = new Date();
-    await blog.save();
-
-    res.json({
-      message: "🎉 Blog published to Website B successfully!",
-      targetResponse: response.data,
-      blog: blog
-    });
-
-  } catch (error) {
-    console.error("❌ Publish to Website B Failed:", error);
-
-    if (error.response) {
-      return res.status(error.response.status).json({
-        error: error.response.data || "Website B returned an error!"
-      });
-    }
-
-    return res.status(500).json({
-      error: error.message || "Failed to publish blog!"
-    });
-  }
-});
-
-
-// ✅ NEW: Get blog statistics
+// Get stats
 router.get('/stats', async (req, res) => {
   try {
     const total = await Blog.countDocuments();
     const published = await Blog.countDocuments({ status: 'published' });
     const draft = await Blog.countDocuments({ status: 'draft' });
-    const published_to_target = await Blog.countDocuments({ status: 'published_to_target' });
 
     res.json({
       total,
       published,
-      draft,
-      published_to_target
+      draft
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -280,35 +262,65 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Auto-publishing cron job (updated)
+// Auto-publishing cron job
 cron.schedule('* * * * *', async () => {
   try {
     const settings = await getSettings();
 
-    const queuedBlogs = await Blog.find({ status: "scheduled" }).sort({ createdAt: 1 });
-    if (!queuedBlogs.length) return;
+    const drafts = await Blog.find({ status: "draft" }).sort({ createdAt: 1 });
+    if (!drafts.length) return;
 
-    const lastPub = await Blog.findOne({ 
-      status: { $in: ["published", "published_to_target"] } 
+    const lastPublished = await Blog.findOne({ 
+      status: "published" 
     }).sort({ publishedAt: -1 });
 
     let canPublish = true;
 
-    if (lastPub) {
-      const diff = (Date.now() - lastPub.publishedAt) / (1000 * 60);
-      canPublish = diff >= settings.publishingFrequency;
+    if (lastPublished) {
+      const diffMinutes = (Date.now() - lastPublished.publishedAt) / (1000 * 60);
+      canPublish = diffMinutes >= settings.publishingFrequency;
     }
 
-    if (canPublish) {
-      const next = queuedBlogs[0];
-      next.status = "published";
-      next.publishedAt = new Date();
-      await next.save();
-      console.log("Auto Published:", next.title);
+    if (canPublish && drafts.length > 0) {
+      const nextBlog = drafts[0];
+      nextBlog.status = "published";
+      nextBlog.publishedAt = new Date();
+      await nextBlog.save();
+      console.log("Auto-published:", nextBlog.title);
     }
 
   } catch (err) {
-    console.error("CRON Error:", err.message);
+    console.error("Cron error:", err.message);
+  }
+});
+
+// ✅ TEST ROUTE - Use this to test if basic connection works
+router.post('/test-generate', async (req, res) => {
+  try {
+    console.log('🧪 Test route called');
+    
+    // Create a simple test blog
+    const blog = await Blog.create({
+      title: "Test Blog - " + new Date().toISOString(),
+      content: "<h2>Test Content</h2><p>This is a test blog generated for debugging.</p>",
+      excerpt: "Test excerpt for debugging",
+      keywords: ["test", "debug"],
+      image: "https://picsum.photos/800/400",
+      status: "draft"
+    });
+
+    res.json({
+      success: true,
+      message: "Test blog created successfully",
+      blog: {
+        id: blog._id,
+        title: blog.title
+      }
+    });
+
+  } catch (error) {
+    console.error('Test route error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -16,14 +16,11 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('blogs');
   const [stats, setStats] = useState({ 
     published: 0, 
-    draft: 0, 
-    published_to_target: 0,
+    draft: 0,
     total: 0 
   });
   const [imageUrls, setImageUrls] = useState([]);
   
-  // ✅ Naye state variables
-  const [targetUrl, setTargetUrl] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedBlogForPublish, setSelectedBlogForPublish] = useState(null);
@@ -37,15 +34,13 @@ const AdminDashboard = () => {
     if (blogs.length > 0) {
       const published = blogs.filter(blog => blog.status === 'published').length;
       const draft = blogs.filter(blog => blog.status === 'draft').length;
-      const published_to_target = blogs.filter(blog => blog.status === 'published_to_target').length;
       const total = blogs.length;
-      setStats({ published, draft, published_to_target, total });
+      setStats({ published, draft, total });
     } else {
-      setStats({ published: 0, draft: 0, published_to_target: 0, total: 0 });
+      setStats({ published: 0, draft: 0, total: 0 });
     }
   }, [blogs]);
 
-  // Initialize image URLs when settings change
   useEffect(() => {
     if (settings?.keywords) {
       setImageUrls(Array(settings.keywords.length).fill(''));
@@ -72,77 +67,75 @@ const AdminDashboard = () => {
     }
   };
 
-  const generateBlogs = async () => {
-    // Validation
-    if (!targetUrl || !targetUrl.trim()) {
-      toast.error('Please provide Target API URL');
-      return;
-    }
+ const generateBlogs = async () => {
+  // Validation
+  const missingUrls = [];
+  const invalidUrls = [];
 
-    // Debug: Check what we're sending
-    console.log('Current imageUrls:', imageUrls);
-    console.log('Current keywords:', settings.keywords);
-    console.log('Target URL:', targetUrl);
-
-    // Enhanced validation
-    const missingUrls = [];
-    const invalidUrls = [];
-
-    settings.keywords?.forEach((keyword, index) => {
-      const url = imageUrls[index];
-      if (!url || url.trim() === '') {
-        missingUrls.push(`"${keyword || `Keyword ${index + 1}`}"`);
-      } else {
-        try {
-          new URL(url.trim());
-        } catch (error) {
-          invalidUrls.push(`"${keyword || `Keyword ${index + 1}`}"`);
-        }
+  settings.keywords?.forEach((keyword, index) => {
+    const url = imageUrls[index];
+    if (!url || url.trim() === '') {
+      missingUrls.push(`"${keyword || `Keyword ${index + 1}`}"`);
+    } else {
+      try {
+        new URL(url.trim());
+      } catch (error) {
+        invalidUrls.push(`"${keyword || `Keyword ${index + 1}`}"`);
       }
-    });
-
-    if (missingUrls.length > 0) {
-      toast.error(`Please provide image URLs for: ${missingUrls.join(', ')}`);
-      return;
     }
+  });
 
-    if (invalidUrls.length > 0) {
-      toast.error(`Invalid image URLs for: ${invalidUrls.join(', ')}`);
-      return;
-    }
+  if (missingUrls.length > 0) {
+    toast.error(`Please provide image URLs for: ${missingUrls.join(', ')}`);
+    return;
+  }
 
-    setGenerating(true);
-    try {
-      // Create the payload with proper data cleaning
-      const payload = {
-        keywords: settings.keywords.map((keyword, index) => ({
-          keyword: keyword.trim(),
-          imageUrl: imageUrls[index].trim()
-        })),
-        targetUrl: targetUrl.trim()
-      };
+  if (invalidUrls.length > 0) {
+    toast.error(`Invalid image URLs for: ${invalidUrls.join(', ')}`);
+    return;
+  }
 
-      console.log('Final payload being sent:', payload);
+  setGenerating(true);
+  try {
+    // ✅ Correct payload format
+    const payload = {
+      keywords: settings.keywords.map((keyword, index) => ({
+        keyword: keyword.trim(),
+        imageUrl: imageUrls[index].trim()
+      }))
+    };
 
-      const response = await api.post('/api/blogs/generate', payload);
+    console.log('🚀 Sending payload:', payload);
+
+    const response = await api.post('/api/blogs/generate', payload);
+    
+    console.log('✅ Response:', response.data);
+    
+    if (response.data.success) {
       toast.success(response.data.message || 'Blogs generated successfully!');
       fetchBlogs();
-      // Clear image URLs after successful generation
       setImageUrls(Array(settings.keywords.length).fill(''));
-      setTargetUrl('');
-    } catch (error) {
-      console.error('Full generation error:', error);
-      console.error('Error response data:', error.response?.data);
-      
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.message || 
-                          error.message ||
-                          'Unknown error occurred';
-      toast.error(`Error generating blogs: ${errorMessage}`);
-    } finally {
-      setGenerating(false);
+    } else {
+      toast.error(response.data.error || 'Failed to generate blogs');
     }
-  };
+    
+  } catch (error) {
+    console.error('❌ Generation error:', error);
+    
+    // Detailed error info
+    const errorData = error.response?.data;
+    console.error('📊 Error response:', errorData);
+    
+    const errorMessage = errorData?.error || 
+                        errorData?.message || 
+                        error.message ||
+                        'Unknown error occurred';
+    
+    toast.error(`Error: ${errorMessage}`);
+  } finally {
+    setGenerating(false);
+  }
+};
 
   const updateSettings = async () => {
     try {
@@ -180,7 +173,6 @@ const AdminDashboard = () => {
         const response = await api.delete(`/api/settings/delete-keyword/${index}`);
         setSettings({ ...settings, keywords: response.data.keywords });
         
-        // Remove the corresponding image URL
         const newImageUrls = [...imageUrls];
         newImageUrls.splice(index, 1);
         setImageUrls(newImageUrls);
@@ -195,18 +187,18 @@ const AdminDashboard = () => {
   const publishNow = async (id) => {
     try {
       await api.post(`/api/blogs/${id}/publish`);
-      toast.success('Blog published immediately!');
+      toast.success('Blog published to /blog page successfully!');
       fetchBlogs();
     } catch (error) {
       toast.error('Error publishing blog: ' + (error.response?.data?.error || error.message));
     }
   };
 
-  const publishToTarget = async (blogId) => {
+  const publishToBlogPage = async (blogId) => {
     setPublishing(true);
     try {
-      const response = await api.post(`/api/blogs/${blogId}/publish-to-target`);
-      toast.success('Blog successfully published to target website!');
+      const response = await api.post(`/api/blogs/${blogId}/publish`);
+      toast.success('Blog successfully published to /blog page!');
       fetchBlogs();
       setShowPublishModal(false);
     } catch (error) {
@@ -248,7 +240,6 @@ const AdminDashboard = () => {
       ...settings,
       keywords: newKeywords
     });
-    // Add empty image URL for new keyword
     setImageUrls([...imageUrls, '']);
   };
 
@@ -319,7 +310,7 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-white/50">
             <div className="flex items-center">
               <div className="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-50 text-green-500 mr-4">
@@ -361,20 +352,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-white/50">
-            <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 text-orange-500 mr-4">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-800">{stats.published_to_target}</div>
-                <div className="text-blue-600/70 text-sm font-medium">Published to Target</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -410,8 +387,8 @@ const AdminDashboard = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-white/50">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800 mb-2">Quick Actions</h2>
-                  <p className="text-blue-600/70 text-sm">Generate and manage your blog content</p>
+                  <h2 className="text-xl font-bold text-gray-800 mb-2">Generate Blogs</h2>
+                  <p className="text-blue-600/70 text-sm">Generate blog content for your keywords</p>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-blue-600">{settings.keywords?.length || 0} Keywords</div>
@@ -419,23 +396,6 @@ const AdminDashboard = () => {
                     {imageUrls.filter(url => url && url.trim()).length} / {settings.keywords?.length || 0} Image URLs provided
                   </div>
                 </div>
-              </div>
-              
-              {/* ✅ TARGET API URL INPUT */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  🎯 Target API URL (Aegservice Publishing Endpoint)
-                </label>
-                <input
-                  type="url"
-                  value={targetUrl}
-                  onChange={(e) => setTargetUrl(e.target.value)}
-                  placeholder="https://aegservice.com/api/publish-blog"
-                  className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
-                />
-                <p className="text-sm text-blue-600/70 mt-2">
-                  ℹ️ Enter the Aegservice API endpoint where blogs should be published
-                </p>
               </div>
               
               {/* Image URLs Input for each keyword */}
@@ -464,7 +424,7 @@ const AdminDashboard = () => {
                           type="url"
                           value={imageUrls[index] || ''}
                           onChange={(e) => updateImageUrl(index, e.target.value)}
-                          placeholder={`https://example.com/image-for-${keyword || `keyword-${index + 1}`}.jpg`}
+                          placeholder={`https://example.com/image.jpg`}
                           className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
                         />
                       </div>
@@ -490,8 +450,8 @@ const AdminDashboard = () => {
               <div className="flex justify-center">
                 <button
                   onClick={generateBlogs}
-                  disabled={generating || imageUrls.some(url => !url || !url.trim()) || !targetUrl.trim()}
-                  className={`inline-flex items-center px-8 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 ${generating || imageUrls.some(url => !url || !url.trim()) || !targetUrl.trim()
+                  disabled={generating || imageUrls.some(url => !url || !url.trim())}
+                  className={`inline-flex items-center px-8 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 ${generating || imageUrls.some(url => !url || !url.trim())
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transform hover:-translate-y-1 hover:shadow-xl'
                     }`}
@@ -529,7 +489,7 @@ const AdminDashboard = () => {
                         Status
                       </th>
                       <th className="px-8 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
-                        Target URL
+                        Keywords
                       </th>
                       <th className="px-8 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
                         Created Date
@@ -542,7 +502,7 @@ const AdminDashboard = () => {
                   <tbody className="bg-white/30 divide-y divide-blue-100/30">
                     {blogs.map((blog) => (
                       <tr key={blog._id} className="hover:bg-blue-50/20 transition-all duration-200">
-                        <td className="px-8 py-4 whitespace-nowrap">
+                        <td className="px-8 py-4">
                           <div className="text-sm font-semibold text-gray-800 max-w-md truncate">
                             {blog.title}
                           </div>
@@ -552,22 +512,19 @@ const AdminDashboard = () => {
                             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                               blog.status === 'published'
                                 ? 'bg-green-100 text-green-700'
-                                : blog.status === 'published_to_target'
-                                ? 'bg-purple-100 text-purple-700'
                                 : 'bg-yellow-100 text-yellow-700'
                             }`}
                           >
                             {blog.status === 'published' 
-                              ? '✅ Published' 
-                              : blog.status === 'published_to_target'
-                              ? '🚀 Published to Target'
+                              ? '✅ Published to /blog' 
                               : '📝 Draft'
                             }
                           </span>
                         </td>
-                        <td className="px-8 py-4 whitespace-nowrap">
-                          <div className="text-sm text-blue-600/80 font-medium max-w-xs truncate">
-                            {blog.targetUrl || 'Not set'}
+                        <td className="px-8 py-4">
+                          <div className="text-sm text-blue-600/80 font-medium max-w-xs">
+                            {Array.isArray(blog.keywords) ? blog.keywords.slice(0, 2).join(', ') : ''}
+                            {blog.keywords?.length > 2 && '...'}
                           </div>
                         </td>
                         <td className="px-8 py-4 whitespace-nowrap text-sm text-blue-600/80 font-medium">
@@ -654,13 +611,16 @@ const AdminDashboard = () => {
                     }
                     className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white/50"
                   />
+                  <p className="text-sm text-blue-600/70 mt-2">
+                    ℹ️ Automatic publishing frequency for blogs to /blog page
+                  </p>
                 </div>
 
                 <button
                   onClick={updateSettings}
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl font-semibold shadow-lg hover:from-blue-600 hover:to-cyan-600 transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
                 >
-                  💾 Save All Settings
+                  💾 Save Settings
                 </button>
               </div>
             </div>
@@ -791,20 +751,20 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* ✅ Publish Confirmation Modal */}
+      {/* Publish to /blog Page Confirmation Modal */}
       {showPublishModal && selectedBlogForPublish && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-white/50">
             <div className="px-6 py-4 border-b border-blue-100 bg-gradient-to-r from-green-50 to-emerald-50">
-              <h3 className="text-lg font-bold text-gray-800">Publish Blog</h3>
-              <p className="text-green-600/70 text-sm">Publish this blog to target website</p>
+              <h3 className="text-lg font-bold text-gray-800">Publish to Blog Page</h3>
+              <p className="text-green-600/70 text-sm">Publish this blog to /blog page</p>
             </div>
             
             <div className="p-6">
               <div className="mb-4">
                 <p className="text-gray-700 mb-2"><strong>Title:</strong> {selectedBlogForPublish.title}</p>
-                <p className="text-gray-700 mb-2"><strong>Target:</strong> {selectedBlogForPublish.targetUrl}</p>
-                <p className="text-sm text-gray-600">Are you sure you want to publish this blog to the target website?</p>
+                <p className="text-gray-700 mb-2"><strong>Keywords:</strong> {selectedBlogForPublish.keywords?.join(', ')}</p>
+                <p className="text-sm text-gray-600">Are you sure you want to publish this blog to the /blog page?</p>
               </div>
               
               <div className="flex justify-end space-x-3">
@@ -816,7 +776,7 @@ const AdminDashboard = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => publishToTarget(selectedBlogForPublish._id)}
+                  onClick={() => publishToBlogPage(selectedBlogForPublish._id)}
                   disabled={publishing}
                   className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50"
                 >
@@ -829,7 +789,7 @@ const AdminDashboard = () => {
                       Publishing...
                     </>
                   ) : (
-                    '🚀 Publish Now'
+                    '🚀 Publish to /blog'
                   )}
                 </button>
               </div>

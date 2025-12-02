@@ -16,17 +16,13 @@ const blogSchema = new mongoose.Schema({
   keywords: [{
     type: String
   }],
-  imageUrl: {
+  image: {
     type: String,
     required: true
   },
-  targetUrl: {
-    type: String,
-    default: ''
-  },
   status: {
     type: String,
-    enum: ['draft', 'published', 'published_to_target', 'scheduled'],
+    enum: ['draft', 'published'],
     default: 'draft'
   },
   publishedAt: {
