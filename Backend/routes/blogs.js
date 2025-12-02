@@ -226,7 +226,8 @@ router.post('/:id/publish-to-target', async (req, res) => {
     console.log("📦 Payload:", payload);
 
     // 🟢 Website B par data send karo
-    const response = await axios.post(blog.targetUrl, payload, {
+    const response = await axios.post(`${blog.targetUrl}/receive-blog`, payload, {
+
       headers: { "Content-Type": "application/json" }
     });
 

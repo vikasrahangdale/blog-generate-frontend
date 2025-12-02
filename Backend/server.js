@@ -1,15 +1,26 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+
 require('dotenv').config();
+console.log("🔍 Environment loaded. GEMINI_API_KEY present:", !!process.env.GEMINI_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const corsOptions = {
+  origin: [
+    "https://blog-generate-frontend-90.onrender.com",  
+    "http://localhost:5173"                         
+  ],
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true,
+};
 
-app.use(cors());
+app.use(cors(corsOptions));
+
+
 app.use(express.json());
 
-// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/blog-platform', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
