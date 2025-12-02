@@ -7,17 +7,15 @@ console.log("🔍 Environment loaded. GEMINI_API_KEY present:", !!process.env.GE
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
 const corsOptions = {
-  origin: [
-    "https://blog-generate-frontend-90.onrender.com",
-    "https://frontend-vikas.onrender.com",  
-    "http://localhost:5173"                         
-  ],
-  methods: "GET,POST,PUT,DELETE",
-  credentials: true,
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions));
+
 
 
 app.use(express.json());
