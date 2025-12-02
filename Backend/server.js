@@ -9,7 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const corsOptions = {
   origin: [
-    "https://blog-generate-frontendd.onrender.com",  
+    "https://blog-generate-frontend-90.onrender.com",
+    "https://frontend-vikas.onrender.com",  
     "http://localhost:5173"                         
   ],
   methods: "GET,POST,PUT,DELETE",
