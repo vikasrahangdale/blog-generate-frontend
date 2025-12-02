@@ -148,11 +148,11 @@ const BlogModal = ({ blog, readingTime, onClose }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/40 flex  items-center justify-center p-4 z-50 backdrop-blur-sm"
+      className="fixed inset-0 bg-white flex  items-center justify-center p-4 z-50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl max-w-6xl mt-20 w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-white/50"
+        className="bg-white rounded-2xl max-w-8xl py-8 pt-20 w-full max-h-[90vh] overflow-hidden flex flex-col "
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header - NO IMAGE */}
@@ -299,7 +299,7 @@ const BlogPage = () => {
         <header className="bg-gradient-to-br from-blue-50/80 via-white to-cyan-50/80 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-6 py-16">
             <div className="text-center">
-              <h1 className="text-5xl md:text-6xl pt-10 font-bold bg-gradient-to-r from-pink-600 to-cyan-300 bg-clip-text text-transparent mb-6">
+              <h1 className="text-5xl md:text-6xl pt-20 font-bold bg-gradient-to-r from-pink-600 to-cyan-300 bg-clip-text text-transparent mb-6">
                 Discover Quality Content
               </h1>
               <p className="text-gray-600/80 text-xl max-w-2xl mx-auto leading-relaxed mb-8 font-medium">
